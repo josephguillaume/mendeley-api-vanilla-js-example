@@ -1,0 +1,85 @@
+<html>
+  <head>
+    <!-- https://github.com/andreassolberg/jso -->
+    <script
+      type="text/javascript"
+      src="https://unpkg.com/jso/dist/jso.js"
+    ></script>
+    <style>
+      .hidden {
+        display: none;
+      }
+      a {
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="output">Not logged in</div>
+    <br />
+    <div>
+      <a id="login" onclick="login()">Login to Mendeley</a>
+      <a id="logout" class="hidden" onclick="logout()">Logout</a>
+    </div>
+    <script>
+      let client = new jso.JSO({
+        providerID: "mendeley",
+        // Register client_id and redirect_uri at https://dev.mendeley.com/
+        client_id: "8363",
+        // The URL where you is redirected back, and where you perform run the callback() function.
+        redirect_uri:
+          "https://josephguillaume.github.io/mendeley-api-vanilla-js-example/",
+        authorization: "https://api.mendeley.com/oauth/authorize",
+        scopes: {
+          request: ["all"]
+        },
+        response_type: "token"
+      });
+      client.callback();
+
+      if (window.location.search.indexOf("doi") < 0)
+        window.location.search = "doi=10.1016/j.molcel.2009.09.013";
+      doi = window.location.search
+        .replace("?", "")
+        .split("&")
+        .filter(x => x.indexOf("doi") > -1)[0]
+        .replace("doi=", "");
+
+      function login() {
+        client
+          .getToken()
+          .then(token => {
+            document.getElementById("login").classList.add("hidden");
+            document.getElementById("logout").classList.remove("hidden");
+            console.log("I got the token: ", token);
+          })
+          .catch(err => {
+            console.error("Error from passive loader", err);
+          });
+      }
+
+      function logout() {
+        document.getElementById("login").classList.remove("hidden");
+        document.getElementById("logout").classList.add("hidden");
+        client.wipeTokens();
+      }
+
+      if (client.checkToken()) {
+        document.getElementById("login").classList.add("hidden");
+        document.getElementById("logout").classList.remove("hidden");
+
+        let f = new jso.Fetcher(client);
+        f.fetch(
+          `https://api.mendeley.com/catalog?doi=${encodeURIComponent(doi)}`
+        )
+          .then(response => response.json())
+          .then(json => {
+            console.log(json);
+            document.getElementById(
+              "output"
+            ).innerText = `Loaded ${json.length} document: ${json[0].title}`;
+          });
+      }
+    </script>
+  </body>
+</html>
